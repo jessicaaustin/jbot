@@ -1,0 +1,17 @@
+<root main_tree_to_execute="MainTree">
+    <BehaviorTree ID="MainTree">
+        <Sequence name="set_context">
+            <SetBlackboardInputs
+                    bot_mode="{bot_mode}"
+                    forward_range_cm="{forward_range_cm}"
+                    goal_waypoint="{goal_waypoint}"
+            />
+            <Fallback name="bot_mode">
+                <Sequence name="bot_mode_idle">
+                    <IsBotModeIdle bot_mode="{bot_mode}"/>
+                    <StopMotion/>
+                </Sequence>
+            </Fallback>
+        </Sequence>
+    </BehaviorTree>
+</root>
