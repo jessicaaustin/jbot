@@ -1,6 +1,9 @@
 #ifndef SRC_JBOT_AUTONOMY_H
 #define SRC_JBOT_AUTONOMY_H
 
+#include "rclcpp/rclcpp.hpp"
+#include "geometry_msgs/msg/twist.hpp"
+
 #include "behaviortree_cpp_v3/action_node.h"
 #include "behaviortree_cpp_v3/bt_factory.h"
 
@@ -25,9 +28,13 @@ public:
  */
 class StopMotion : public BT::SyncActionNode {
 public:
-    explicit StopMotion(const std::string &name);
+    explicit StopMotion(const std::string &name,
+                        const std::shared_ptr<rclcpp::Publisher<geometry_msgs::msg::Twist>> &cmd_vel_pub);
 
     BT::NodeStatus tick() override;
+
+private:
+    std::shared_ptr<rclcpp::Publisher<geometry_msgs::msg::Twist>> cmd_vel_pub_;
 };
 
 //

@@ -18,11 +18,13 @@ endif ()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(behaviortree_cpp_v3 REQUIRED)
 
 set(dependencies
         ament_index_cpp
+        geometry_msgs
         rclcpp
         behaviortree_cpp_v3
         )
