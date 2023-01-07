@@ -3,6 +3,10 @@
 #include "geometry_msgs/msg/twist.hpp"
 #include "jbot_autonomy/jbot_autonomy.hpp"
 
+//
+// TREE
+//
+
 SetBlackboardInputs::SetBlackboardInputs(const std::string &name, const BT::NodeConfiguration &config)
         : SyncActionNode(name, config) {}
 
@@ -50,26 +54,28 @@ BT::NodeStatus StopMotion::tick() {
     return BT::NodeStatus::SUCCESS;
 }
 
+//
+// ROS NODE
+//
 
-int main(int argc, char **argv) {
-    rclcpp::init(argc, argv);
-
-    std::shared_ptr<rclcpp::Node> node = rclcpp::Node::make_shared("jbot_autonomy");
-    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub
-            = node->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 10);
+JBotAutonomyNode::JBotAutonomyNode() : Node("jbot_autonomy") {
+    cmd_vel_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 10);
 
     BT::BehaviorTreeFactory factory;
     factory.registerNodeType<SetBlackboardInputs>("SetBlackboardInputs");
     factory.registerNodeType<IsBotModeIdle>("IsBotModeIdle");
     // https://www.behaviortree.dev/docs/3.8/tutorial-basics/tutorial_08_additional_args
     factory.registerBuilder<StopMotion>("StopMotion",
-                                        [cmd_vel_pub](const std::string &name, const BT::NodeConfiguration &config) {
-                                            return std::make_unique<StopMotion>(name, cmd_vel_pub);
+                                        [&](const std::string &name,
+                                            __attribute__((unused)) const BT::NodeConfiguration &config) {
+                                            return std::make_unique<StopMotion>(name, cmd_vel_pub_);
                                         });
+    tree_ = factory.createTreeFromFile(BT_XML_PATH);
+}
 
-    auto tree = factory.createTreeFromFile(BT_XML_PATH);
+void JBotAutonomyNode::run() {
 
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Tree loaded! Starting execution.");
+    RCLCPP_INFO(this->get_logger(), "Starting execution");
 
     // Run through tree over and over until user stops the process or the tree fails.
     rclcpp::Rate loop_rate(10);
@@ -77,7 +83,7 @@ int main(int argc, char **argv) {
         // Run tree once.
         // If the tree fails, then break.
         try {
-            BT::NodeStatus status = tree.tickRoot();
+            BT::NodeStatus status = tree_.tickRoot();
             if (status != BT::NodeStatus::SUCCESS) {
                 RCLCPP_ERROR(rclcpp::get_logger("rclcpp"),
                              "Tree execution failed! Status = %d", (int) status);
@@ -91,6 +97,14 @@ int main(int argc, char **argv) {
         loop_rate.sleep();
     }
 
+    rclcpp::shutdown();
+}
+
+
+int main(int argc, char **argv) {
+    rclcpp::init(argc, argv);
+    auto node = std::make_shared<JBotAutonomyNode>();
+    node->run();
     rclcpp::shutdown();
     return 0;
 }

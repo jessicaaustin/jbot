@@ -10,6 +10,9 @@
 // TODO pass in via launch file or ros param or something
 #define BT_XML_PATH "/home/jessica/dev/personal/jbot_ws/src/jbot_autonomy/config/jbot_autonomy_tree.xml"
 
+//
+// TREE
+//
 
 /**
  * @brief Set the current values for input ports to the blackboard (bot_mode, etc).
@@ -60,5 +63,24 @@ public:
     BT::NodeStatus tick() override;
 };
 
+
+//
+// ROS NODE
+//
+
+class JBotAutonomyNode : public rclcpp::Node
+{
+public:
+    JBotAutonomyNode();
+
+    void run();
+
+    // sub for commands and state
+
+private:
+    BT::Tree tree_;
+    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
+
+};
 
 #endif //SRC_JBOT_AUTONOMY_H
