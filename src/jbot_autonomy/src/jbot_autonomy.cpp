@@ -6,8 +6,10 @@
 // TREE
 //
 
-SetBlackboardInputs::SetBlackboardInputs(const std::string &name, const BT::NodeConfiguration &config)
-        : SyncActionNode(name, config) {}
+SetBlackboardInputs::SetBlackboardInputs(const std::string &name,
+                                         const BT::NodeConfiguration &config,
+                                         const std::shared_ptr<JBotAutonomyNode> &nh)
+        : SyncActionNode(name, config), nh_(nh) {}
 
 BT::PortsList SetBlackboardInputs::providedPorts() {
     return {
@@ -18,9 +20,10 @@ BT::PortsList SetBlackboardInputs::providedPorts() {
 }
 
 BT::NodeStatus SetBlackboardInputs::tick() {
-    // TODO set based on class internal state
-    setOutput("bot_mode", BOT_MODE_IDLE);
+    setOutput("bot_mode", nh_->get_bot_mode());
+    // TODO set actual value
     setOutput("forward_range_cm", 99);
+    // TODO set actual value
     setOutput("goal_waypoint", "1 0");
     return BT::NodeStatus::SUCCESS;
 }
@@ -103,12 +106,18 @@ JBotAutonomyNode::JBotAutonomyNode() : Node("jbot_autonomy") {
                 op_cmd_ = std::move(msg);
             }
     );
+}
+
+void JBotAutonomyNode::create_tree(const std::shared_ptr<JBotAutonomyNode> nh) {
 
     BT::BehaviorTreeFactory factory;
-    factory.registerNodeType<SetBlackboardInputs>("SetBlackboardInputs");
+    factory.registerBuilder<SetBlackboardInputs>("SetBlackboardInputs",
+                                                 [nh](const std::string &name,
+                                                        const BT::NodeConfiguration &config) {
+                                                     return std::make_unique<SetBlackboardInputs>(name, config, nh);
+                                                 });
     factory.registerNodeType<OperatorMove>("OperatorMove");
     factory.registerNodeType<GoalMove>("GoalMove");
-    // https://www.behaviortree.dev/docs/3.8/tutorial-basics/tutorial_08_additional_args
     factory.registerBuilder<StopMotion>("StopMotion",
                                         [&](const std::string &name,
                                             __attribute__((unused)) const BT::NodeConfiguration &config) {
@@ -118,6 +127,10 @@ JBotAutonomyNode::JBotAutonomyNode() : Node("jbot_autonomy") {
     registerBotModeConditionNode(factory, "IsBotModeTeleop", BOT_MODE_TELEOP);
     registerBotModeConditionNode(factory, "IsBotModeAutonomous", BOT_MODE_AUTONOMOUS);
     tree_ = factory.createTreeFromFile(BT_XML_PATH);
+}
+
+std::string JBotAutonomyNode::get_bot_mode() {
+    return op_cmd_->bot_mode;
 }
 
 void JBotAutonomyNode::run() {
@@ -156,6 +169,7 @@ void JBotAutonomyNode::run() {
 int main(int argc, char **argv) {
     rclcpp::init(argc, argv);
     auto node = std::make_shared<JBotAutonomyNode>();
+    node->create_tree(node);
     node->run();
     rclcpp::shutdown();
     return 0;

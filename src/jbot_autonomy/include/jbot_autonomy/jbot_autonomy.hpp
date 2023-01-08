@@ -16,6 +16,42 @@ const std::string BOT_MODE_IDLE = "idle";
 const std::string BOT_MODE_TELEOP = "teleop";
 const std::string BOT_MODE_AUTONOMOUS = "autonomous";
 
+
+//
+// ROS NODE
+//
+
+class JBotAutonomyNode : public rclcpp::Node {
+public:
+    /**
+     * Initialize pub, sub..
+     */
+    JBotAutonomyNode();
+
+    /**
+     * Create the tree.
+     *
+     * TODO what's the right way to share state between the tree and the ros node?
+     *   Passing around the node handle seems weird, but I can't think of a better way.
+     */
+    void create_tree(std::shared_ptr<JBotAutonomyNode> nh);
+
+    std::string get_bot_mode();
+
+    /**
+     * Evaluate the tree in a loop.
+     */
+    void run();
+
+private:
+    jbot_interfaces::msg::OperatorCommand::UniquePtr op_cmd_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr bot_mode_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr cmd_vel_pub_;
+    rclcpp::Subscription<jbot_interfaces::msg::OperatorCommand>::SharedPtr op_cmd_sub_;
+    BT::Tree tree_;
+
+};
+
 //
 // TREE
 //
@@ -25,11 +61,16 @@ const std::string BOT_MODE_AUTONOMOUS = "autonomous";
  */
 class SetBlackboardInputs : public BT::SyncActionNode {
 public:
-    SetBlackboardInputs(const std::string &name, const BT::NodeConfiguration &config);
+    SetBlackboardInputs(const std::string &name,
+                        const BT::NodeConfiguration &config,
+                        const std::shared_ptr<JBotAutonomyNode> &nh);
 
     static BT::PortsList providedPorts();
 
     BT::NodeStatus tick() override;
+
+private:
+    std::shared_ptr<JBotAutonomyNode> nh_;
 };
 
 /**
@@ -82,32 +123,6 @@ public:
 
 private:
     std::string target_bot_mode_;
-};
-
-
-//
-// ROS NODE
-//
-
-class JBotAutonomyNode : public rclcpp::Node {
-public:
-    /**
-     * Initialize pub, sub, and behavior tree.
-     */
-    JBotAutonomyNode();
-
-    /**
-     * Evaluate the tree in a loop.
-     */
-    void run();
-
-private:
-    jbot_interfaces::msg::OperatorCommand::UniquePtr op_cmd_;
-    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr bot_mode_pub_;
-    rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr cmd_vel_pub_;
-    rclcpp::Subscription<jbot_interfaces::msg::OperatorCommand>::SharedPtr op_cmd_sub_;
-    BT::Tree tree_;
-
 };
 
 #endif //SRC_JBOT_AUTONOMY_H
