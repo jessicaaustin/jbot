@@ -24,7 +24,7 @@ const std::string BOT_MODE_AUTONOMOUS = "autonomous";
 class JBotAutonomyNode : public rclcpp::Node {
 public:
     /**
-     * Initialize pub, sub..
+     * Initialize pub, sub, and timers.
      */
     JBotAutonomyNode();
 
@@ -39,15 +39,16 @@ public:
     std::string get_bot_mode();
 
     /**
-     * Evaluate the tree in a loop.
+     * Evaluate the tree once, and publish current status.
      */
-    void run();
+    void run_tree();
 
 private:
-    jbot_interfaces::msg::OperatorCommand::UniquePtr op_cmd_;
+    jbot_interfaces::msg::OperatorCommand::SharedPtr op_cmd_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr bot_mode_pub_;
     rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr cmd_vel_pub_;
     rclcpp::Subscription<jbot_interfaces::msg::OperatorCommand>::SharedPtr op_cmd_sub_;
+    rclcpp::TimerBase::SharedPtr run_timer_;
     BT::Tree tree_;
 
 };

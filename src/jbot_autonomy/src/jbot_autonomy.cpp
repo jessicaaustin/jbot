@@ -92,6 +92,8 @@ void registerBotModeConditionNode(BT::BehaviorTreeFactory &factory,
                                                   });
 }
 
+using namespace std::chrono_literals;
+
 JBotAutonomyNode::JBotAutonomyNode() : Node("jbot_autonomy") {
     op_cmd_ = std::make_unique<jbot_interfaces::msg::OperatorCommand>();
     op_cmd_->bot_mode = BOT_MODE_IDLE;
@@ -100,12 +102,14 @@ JBotAutonomyNode::JBotAutonomyNode() : Node("jbot_autonomy") {
     cmd_vel_pub_ = this->create_publisher<geometry_msgs::msg::TwistStamped>("cmd_vel", 10);
     op_cmd_sub_ = this->create_subscription<jbot_interfaces::msg::OperatorCommand>(
             "operator_command", 10,
-            [&](jbot_interfaces::msg::OperatorCommand::UniquePtr msg) {
-                // TODO why isn't this callback getting called?
-                // TODO is this best practice? and use sharedptr or uniqueptr?
-                op_cmd_ = std::move(msg);
+            [&](jbot_interfaces::msg::OperatorCommand::SharedPtr msg) {
+                op_cmd_ = msg;
             }
     );
+
+    run_timer_ = this->create_wall_timer(100ms, std::bind(&JBotAutonomyNode::run_tree, this));
+
+    RCLCPP_INFO(this->get_logger(), "Init complete");
 }
 
 void JBotAutonomyNode::create_tree(const std::shared_ptr<JBotAutonomyNode> nh) {
@@ -113,7 +117,7 @@ void JBotAutonomyNode::create_tree(const std::shared_ptr<JBotAutonomyNode> nh) {
     BT::BehaviorTreeFactory factory;
     factory.registerBuilder<SetBlackboardInputs>("SetBlackboardInputs",
                                                  [nh](const std::string &name,
-                                                        const BT::NodeConfiguration &config) {
+                                                      const BT::NodeConfiguration &config) {
                                                      return std::make_unique<SetBlackboardInputs>(name, config, nh);
                                                  });
     factory.registerNodeType<OperatorMove>("OperatorMove");
@@ -127,42 +131,35 @@ void JBotAutonomyNode::create_tree(const std::shared_ptr<JBotAutonomyNode> nh) {
     registerBotModeConditionNode(factory, "IsBotModeTeleop", BOT_MODE_TELEOP);
     registerBotModeConditionNode(factory, "IsBotModeAutonomous", BOT_MODE_AUTONOMOUS);
     tree_ = factory.createTreeFromFile(BT_XML_PATH);
+
+    RCLCPP_INFO(this->get_logger(), "Created tree");
 }
 
 std::string JBotAutonomyNode::get_bot_mode() {
     return op_cmd_->bot_mode;
 }
 
-void JBotAutonomyNode::run() {
+void JBotAutonomyNode::run_tree() {
+    RCLCPP_INFO_ONCE(this->get_logger(), "Starting tree execution");
 
-    RCLCPP_INFO(this->get_logger(), "Starting execution");
+    // Publish current state
+    auto bot_mode_msg = std_msgs::msg::String();
+    bot_mode_msg.data = this->op_cmd_->bot_mode;
+    this->bot_mode_pub_->publish(bot_mode_msg);
 
-    // Run through tree over and over until user stops the process or the tree fails.
-    rclcpp::Rate loop_rate(10);
-    while (rclcpp::ok()) {
-        // Publish current state
-        auto bot_mode_msg = std_msgs::msg::String();
-        bot_mode_msg.data = this->op_cmd_->bot_mode;
-        this->bot_mode_pub_->publish(bot_mode_msg);
-
-        // Run tree once.
-        // If the tree fails, then break.
-        try {
-            BT::NodeStatus status = tree_.tickRoot();
-            if (status != BT::NodeStatus::SUCCESS) {
-                RCLCPP_ERROR(this->get_logger(),
-                             "Tree execution failed! Status = %d", (int) status);
-                break;
-            }
-        } catch (BT::RuntimeError &e) {
+    // Run tree once.
+    // If the tree fails, then break.
+    try {
+        BT::NodeStatus status = tree_.tickRoot();
+        if (status != BT::NodeStatus::SUCCESS) {
             RCLCPP_ERROR(this->get_logger(),
-                         "Tree execution failed! Error = %s", e.what());
-            break;
+                         "Tree execution failed! Status = %d", (int) status);
         }
-        loop_rate.sleep();
+    } catch (BT::RuntimeError &e) {
+        RCLCPP_ERROR(this->get_logger(),
+                     "Tree execution failed! Error = %s", e.what());
     }
 
-    rclcpp::shutdown();
 }
 
 
@@ -170,7 +167,7 @@ int main(int argc, char **argv) {
     rclcpp::init(argc, argv);
     auto node = std::make_shared<JBotAutonomyNode>();
     node->create_tree(node);
-    node->run();
+    rclcpp::spin(node);
     rclcpp::shutdown();
     return 0;
 }
