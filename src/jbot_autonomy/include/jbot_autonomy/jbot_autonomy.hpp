@@ -36,7 +36,20 @@ public:
      */
     void create_tree(std::shared_ptr<JBotAutonomyNode> nh);
 
+    /**
+     * @return the current bot_mode
+     */
     std::string get_bot_mode();
+
+    /**
+     * @return the current teleop cmd
+     */
+    geometry_msgs::msg::Twist get_teleop_twist();
+
+    /**
+     * Publish on the cmd_vel topic;
+     */
+    void pub_cmd_vel(geometry_msgs::msg::TwistStamped msg);
 
     /**
      * Evaluate the tree once, and publish current status.
@@ -80,12 +93,12 @@ private:
 class StopMotion : public BT::SyncActionNode {
 public:
     explicit StopMotion(const std::string &name,
-                        const std::shared_ptr<rclcpp::Publisher<geometry_msgs::msg::TwistStamped>> &cmd_vel_pub);
+                        const std::shared_ptr<JBotAutonomyNode> &nh);
 
     BT::NodeStatus tick() override;
 
 private:
-    std::shared_ptr<rclcpp::Publisher<geometry_msgs::msg::TwistStamped>> cmd_vel_pub_;
+    std::shared_ptr<JBotAutonomyNode> nh_;
 };
 
 /**
@@ -93,9 +106,13 @@ private:
  */
 class OperatorMove : public BT::SyncActionNode {
 public:
-    explicit OperatorMove(const std::string &name);
+    explicit OperatorMove(const std::string &name,
+                          const std::shared_ptr<JBotAutonomyNode> &nh);
 
     BT::NodeStatus tick() override;
+
+private:
+    std::shared_ptr<JBotAutonomyNode> nh_;
 };
 
 /**

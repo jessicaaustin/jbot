@@ -47,24 +47,25 @@ BT::NodeStatus BotModeConditionNode::tick() {
 }
 
 StopMotion::StopMotion(const std::string &name,
-                       const std::shared_ptr<rclcpp::Publisher<geometry_msgs::msg::TwistStamped>> &cmd_vel_pub)
-        : SyncActionNode(name, {}), cmd_vel_pub_(cmd_vel_pub) {}
+                       const std::shared_ptr<JBotAutonomyNode> &nh)
+        : SyncActionNode(name, {}), nh_(nh) {}
 
 BT::NodeStatus StopMotion::tick() {
-    // TODO use node logger
-    RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Publishing 'zero' Twist on /cmd_vel");
+    RCLCPP_DEBUG(nh_->get_logger(), "Publishing 'zero' Twist on /cmd_vel");
     auto message = geometry_msgs::msg::TwistStamped();
-    // TODO set header stamp on message
-    this->cmd_vel_pub_->publish(message);
+    message.header.stamp = nh_->get_clock()->now();
+    nh_->pub_cmd_vel(message);
     return BT::NodeStatus::SUCCESS;
 }
 
-OperatorMove::OperatorMove(const std::string &name) : BT::SyncActionNode(name, {}) {}
+OperatorMove::OperatorMove(const std::string &name,
+                           const std::shared_ptr<JBotAutonomyNode> &nh) : BT::SyncActionNode(name, {}), nh_(nh) {}
 
 BT::NodeStatus OperatorMove::tick() {
-    // TODO use node logger
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Publishing /operator_command.teleop_cmd Twist on /cmd_vel");
-    // TODO implement
+    auto message = geometry_msgs::msg::TwistStamped();
+    message.header.stamp = nh_->get_clock()->now();
+    message.twist = nh_->get_teleop_twist();
+    nh_->pub_cmd_vel(message);
     return BT::NodeStatus::SUCCESS;
 }
 
@@ -73,7 +74,7 @@ GoalMove::GoalMove(const std::string &name) : BT::SyncActionNode(name, {}) {}
 BT::NodeStatus GoalMove::tick() {
     // TODO use node logger
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"),
-                "Publishing Twist to reach /operator_command.goal, "
+                "[not implemented] Publishing Twist to reach /operator_command.goal, "
                 "given current /robot_state.pose");
     // TODO implement
     return BT::NodeStatus::SUCCESS;
@@ -82,15 +83,6 @@ BT::NodeStatus GoalMove::tick() {
 //
 // ROS NODE
 //
-
-void registerBotModeConditionNode(BT::BehaviorTreeFactory &factory,
-                                  const char *node_name, const std::string &bot_mode) {
-    factory.registerBuilder<BotModeConditionNode>(node_name,
-                                                  [&](const std::string &name, const BT::NodeConfiguration &config) {
-                                                      return std::make_unique<BotModeConditionNode>(name, config,
-                                                                                                    bot_mode);
-                                                  });
-}
 
 using namespace std::chrono_literals;
 
@@ -112,20 +104,32 @@ JBotAutonomyNode::JBotAutonomyNode() : Node("jbot_autonomy") {
     RCLCPP_INFO(this->get_logger(), "Init complete");
 }
 
-void JBotAutonomyNode::create_tree(const std::shared_ptr<JBotAutonomyNode> nh) {
+void registerBotModeConditionNode(BT::BehaviorTreeFactory &factory,
+                                  const char *node_name, const std::string &bot_mode) {
+    factory.registerBuilder<BotModeConditionNode>(node_name,
+                                                  [&](const std::string &name, const BT::NodeConfiguration &config) {
+                                                      return std::make_unique<BotModeConditionNode>(name, config,
+                                                                                                    bot_mode);
+                                                  });
+}
 
+void JBotAutonomyNode::create_tree(const std::shared_ptr<JBotAutonomyNode> nh) {
     BT::BehaviorTreeFactory factory;
     factory.registerBuilder<SetBlackboardInputs>("SetBlackboardInputs",
                                                  [nh](const std::string &name,
                                                       const BT::NodeConfiguration &config) {
                                                      return std::make_unique<SetBlackboardInputs>(name, config, nh);
                                                  });
-    factory.registerNodeType<OperatorMove>("OperatorMove");
+    factory.registerBuilder<OperatorMove>("OperatorMove",
+                                          [nh](const std::string &name,
+                                               __attribute__((unused)) const BT::NodeConfiguration &config) {
+                                              return std::make_unique<OperatorMove>(name, nh);
+                                          });
     factory.registerNodeType<GoalMove>("GoalMove");
     factory.registerBuilder<StopMotion>("StopMotion",
                                         [&](const std::string &name,
                                             __attribute__((unused)) const BT::NodeConfiguration &config) {
-                                            return std::make_unique<StopMotion>(name, cmd_vel_pub_);
+                                            return std::make_unique<StopMotion>(name, nh);
                                         });
     registerBotModeConditionNode(factory, "IsBotModeIdle", BOT_MODE_IDLE);
     registerBotModeConditionNode(factory, "IsBotModeTeleop", BOT_MODE_TELEOP);
@@ -137,6 +141,14 @@ void JBotAutonomyNode::create_tree(const std::shared_ptr<JBotAutonomyNode> nh) {
 
 std::string JBotAutonomyNode::get_bot_mode() {
     return op_cmd_->bot_mode;
+}
+
+geometry_msgs::msg::Twist JBotAutonomyNode::get_teleop_twist() {
+    return op_cmd_->teleop_cmd;
+}
+
+void JBotAutonomyNode::pub_cmd_vel(geometry_msgs::msg::TwistStamped msg) {
+    cmd_vel_pub_->publish(msg);
 }
 
 void JBotAutonomyNode::run_tree() {
