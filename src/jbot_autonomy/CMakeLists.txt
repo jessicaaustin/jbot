@@ -19,12 +19,14 @@ endif ()
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(jbot_interfaces REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(behaviortree_cpp_v3 REQUIRED)
 
 set(dependencies
         ament_index_cpp
         geometry_msgs
+        jbot_interfaces
         rclcpp
         behaviortree_cpp_v3
         )
@@ -34,11 +36,14 @@ include_directories(
 )
 
 add_executable(jbot_autonomy src/jbot_autonomy.cpp)
+add_executable(op_cmd_publisher src/op_cmd_publisher.cpp)
 
 ament_target_dependencies(jbot_autonomy ${dependencies})
+ament_target_dependencies(op_cmd_publisher ${dependencies})
 
 install(TARGETS
         jbot_autonomy
+        op_cmd_publisher
         DESTINATION lib/${PROJECT_NAME})
 
 install(

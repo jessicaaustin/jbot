@@ -1,6 +1,3 @@
-#include "rclcpp/rclcpp.hpp"
-#include "std_msgs/msg/string.hpp"
-#include "geometry_msgs/msg/twist.hpp"
 #include "jbot_autonomy/jbot_autonomy.hpp"
 
 //
@@ -12,7 +9,6 @@ SetBlackboardInputs::SetBlackboardInputs(const std::string &name, const BT::Node
 
 BT::PortsList SetBlackboardInputs::providedPorts() {
     return {
-            // TODO bot_mode should be an enum? at least internally in this class
             BT::OutputPort<std::string>("bot_mode"),
             BT::OutputPort<int>("forward_range_cm"),
             // TODO specify type (https://www.behaviortree.dev/docs/3.8/tutorial-basics/tutorial_03_generic_ports)
@@ -21,7 +17,7 @@ BT::PortsList SetBlackboardInputs::providedPorts() {
 
 BT::NodeStatus SetBlackboardInputs::tick() {
     // TODO set based on class internal state
-    setOutput("bot_mode", "idle");
+    setOutput("bot_mode", BOT_MODE_IDLE);
     setOutput("forward_range_cm", 99);
     setOutput("goal_waypoint", "1 0");
     return BT::NodeStatus::SUCCESS;
@@ -40,16 +36,18 @@ BT::NodeStatus IsBotModeIdle::tick() {
         throw BT::RuntimeError("missing required input [bot_mode]: ",
                                bot_mode.error());
     }
-    return bot_mode == "idle" ? BT::NodeStatus::SUCCESS : BT::NodeStatus::FAILURE;
+    return bot_mode == BOT_MODE_IDLE ? BT::NodeStatus::SUCCESS : BT::NodeStatus::FAILURE;
 }
 
 StopMotion::StopMotion(const std::string &name,
-                       const std::shared_ptr<rclcpp::Publisher<geometry_msgs::msg::Twist>> &cmd_vel_pub)
+                       const std::shared_ptr<rclcpp::Publisher<geometry_msgs::msg::TwistStamped>> &cmd_vel_pub)
         : SyncActionNode(name, {}), cmd_vel_pub_(cmd_vel_pub) {}
 
 BT::NodeStatus StopMotion::tick() {
+    // TODO use node logger
     RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), "Publishing 'zero' Twist on /cmd_vel");
-    auto message = geometry_msgs::msg::Twist();
+    auto message = geometry_msgs::msg::TwistStamped();
+    // TODO set header stamp on message
     this->cmd_vel_pub_->publish(message);
     return BT::NodeStatus::SUCCESS;
 }
@@ -59,7 +57,19 @@ BT::NodeStatus StopMotion::tick() {
 //
 
 JBotAutonomyNode::JBotAutonomyNode() : Node("jbot_autonomy") {
-    cmd_vel_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 10);
+    op_cmd_ = std::make_unique<jbot_interfaces::msg::OperatorCommand>();
+    op_cmd_->bot_mode = BOT_MODE_IDLE;
+
+    bot_mode_pub_ = this->create_publisher<std_msgs::msg::String>("bot_mode", 10);
+    cmd_vel_pub_ = this->create_publisher<geometry_msgs::msg::TwistStamped>("cmd_vel", 10);
+    op_cmd_sub_ = this->create_subscription<jbot_interfaces::msg::OperatorCommand>(
+            "operator_command", 10,
+            [&](jbot_interfaces::msg::OperatorCommand::UniquePtr msg) {
+                // TODO why isn't this callback getting called?
+                // TODO is this best practice? and use sharedptr or uniqueptr?
+                op_cmd_ = std::move(msg);
+            }
+    );
 
     BT::BehaviorTreeFactory factory;
     factory.registerNodeType<SetBlackboardInputs>("SetBlackboardInputs");
@@ -80,17 +90,22 @@ void JBotAutonomyNode::run() {
     // Run through tree over and over until user stops the process or the tree fails.
     rclcpp::Rate loop_rate(10);
     while (rclcpp::ok()) {
+        // Publish current state
+        auto bot_mode_msg = std_msgs::msg::String();
+        bot_mode_msg.data = this->op_cmd_->bot_mode;
+        this->bot_mode_pub_->publish(bot_mode_msg);
+
         // Run tree once.
         // If the tree fails, then break.
         try {
             BT::NodeStatus status = tree_.tickRoot();
             if (status != BT::NodeStatus::SUCCESS) {
-                RCLCPP_ERROR(rclcpp::get_logger("rclcpp"),
+                RCLCPP_ERROR(this->get_logger(),
                              "Tree execution failed! Status = %d", (int) status);
                 break;
             }
         } catch (BT::RuntimeError &e) {
-            RCLCPP_ERROR(rclcpp::get_logger("rclcpp"),
+            RCLCPP_ERROR(this->get_logger(),
                          "Tree execution failed! Error = %s", e.what());
             break;
         }

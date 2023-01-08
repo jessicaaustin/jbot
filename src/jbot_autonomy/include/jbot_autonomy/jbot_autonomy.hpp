@@ -2,13 +2,19 @@
 #define SRC_JBOT_AUTONOMY_H
 
 #include "rclcpp/rclcpp.hpp"
-#include "geometry_msgs/msg/twist.hpp"
+#include "geometry_msgs/msg/twist_stamped.hpp"
+#include "std_msgs/msg/string.hpp"
+#include "jbot_interfaces/msg/operator_command.hpp"
 
 #include "behaviortree_cpp_v3/action_node.h"
 #include "behaviortree_cpp_v3/bt_factory.h"
 
 // TODO pass in via launch file or ros param or something
 #define BT_XML_PATH "/home/jessica/dev/personal/jbot_ws/src/jbot_autonomy/config/jbot_autonomy_tree.xml"
+
+const std::string BOT_MODE_IDLE = "idle";
+const std::string BOT_MODE_TELEOP = "teleop";
+const std::string BOT_MODE_AUTONOMOUS = "autonomous";
 
 //
 // TREE
@@ -32,12 +38,12 @@ public:
 class StopMotion : public BT::SyncActionNode {
 public:
     explicit StopMotion(const std::string &name,
-                        const std::shared_ptr<rclcpp::Publisher<geometry_msgs::msg::Twist>> &cmd_vel_pub);
+                        const std::shared_ptr<rclcpp::Publisher<geometry_msgs::msg::TwistStamped>> &cmd_vel_pub);
 
     BT::NodeStatus tick() override;
 
 private:
-    std::shared_ptr<rclcpp::Publisher<geometry_msgs::msg::Twist>> cmd_vel_pub_;
+    std::shared_ptr<rclcpp::Publisher<geometry_msgs::msg::TwistStamped>> cmd_vel_pub_;
 };
 
 //
@@ -68,18 +74,24 @@ public:
 // ROS NODE
 //
 
-class JBotAutonomyNode : public rclcpp::Node
-{
+class JBotAutonomyNode : public rclcpp::Node {
 public:
+    /**
+     * Initialize pub, sub, and behavior tree.
+     */
     JBotAutonomyNode();
 
+    /**
+     * Evaluate the tree in a loop.
+     */
     void run();
 
-    // sub for commands and state
-
 private:
+    jbot_interfaces::msg::OperatorCommand::UniquePtr op_cmd_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr bot_mode_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr cmd_vel_pub_;
+    rclcpp::Subscription<jbot_interfaces::msg::OperatorCommand>::SharedPtr op_cmd_sub_;
     BT::Tree tree_;
-    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
 
 };
 
