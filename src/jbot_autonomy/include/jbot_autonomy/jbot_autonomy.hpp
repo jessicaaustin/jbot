@@ -9,9 +9,6 @@
 #include "behaviortree_cpp_v3/action_node.h"
 #include "behaviortree_cpp_v3/bt_factory.h"
 
-// TODO pass in via launch file or ros param or something
-#define BT_XML_PATH "/home/jessica/dev/personal/jbot_ws/src/jbot_autonomy/config/jbot_autonomy_tree.xml"
-
 const std::string BOT_MODE_IDLE = "idle";
 const std::string BOT_MODE_TELEOP = "teleop";
 const std::string BOT_MODE_AUTONOMOUS = "autonomous";
@@ -63,6 +60,8 @@ private:
     rclcpp::Subscription<jbot_interfaces::msg::OperatorCommand>::SharedPtr op_cmd_sub_;
     rclcpp::TimerBase::SharedPtr run_timer_;
     BT::Tree tree_;
+
+    std::filesystem::path determineTreeXmlPath();
 
 };
 

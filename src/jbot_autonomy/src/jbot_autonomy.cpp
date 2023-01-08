@@ -1,6 +1,8 @@
 #include <utility>
+#include <filesystem>
 
 #include "jbot_autonomy/jbot_autonomy.hpp"
+#include <ament_index_cpp/get_package_share_directory.hpp>
 
 //
 // TREE
@@ -87,6 +89,8 @@ BT::NodeStatus GoalMove::tick() {
 using namespace std::chrono_literals;
 
 JBotAutonomyNode::JBotAutonomyNode() : Node("jbot_autonomy") {
+    this->declare_parameter("tree_xml_filename");
+
     op_cmd_ = std::make_unique<jbot_interfaces::msg::OperatorCommand>();
     op_cmd_->bot_mode = BOT_MODE_IDLE;
 
@@ -113,6 +117,15 @@ void registerBotModeConditionNode(BT::BehaviorTreeFactory &factory,
                                                   });
 }
 
+std::filesystem::path JBotAutonomyNode::determineTreeXmlPath() {
+    // TODO maybe this full path should be constructed in jbot_autonomy_launch.py?
+    std::filesystem::path treeXmlPath(ament_index_cpp::get_package_share_directory("jbot_autonomy"));
+    treeXmlPath /= "config";
+    treeXmlPath /= std::filesystem::path(
+            this->get_parameter("tree_xml_filename").get_parameter_value().get<std::string>());
+    return treeXmlPath;
+}
+
 void JBotAutonomyNode::create_tree(const std::shared_ptr<JBotAutonomyNode> nh) {
     BT::BehaviorTreeFactory factory;
     factory.registerBuilder<SetBlackboardInputs>("SetBlackboardInputs",
@@ -134,7 +147,7 @@ void JBotAutonomyNode::create_tree(const std::shared_ptr<JBotAutonomyNode> nh) {
     registerBotModeConditionNode(factory, "IsBotModeIdle", BOT_MODE_IDLE);
     registerBotModeConditionNode(factory, "IsBotModeTeleop", BOT_MODE_TELEOP);
     registerBotModeConditionNode(factory, "IsBotModeAutonomous", BOT_MODE_AUTONOMOUS);
-    tree_ = factory.createTreeFromFile(BT_XML_PATH);
+    tree_ = factory.createTreeFromFile(this->determineTreeXmlPath());
 
     RCLCPP_INFO(this->get_logger(), "Created tree");
 }

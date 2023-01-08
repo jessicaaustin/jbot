@@ -1,0 +1,3 @@
+/jbot_autonomy:
+  ros__parameters:
+    tree_xml_filename: "jbot_autonomy_tree.xml"
