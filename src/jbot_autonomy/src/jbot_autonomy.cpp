@@ -1,3 +1,5 @@
+#include <utility>
+
 #include "jbot_autonomy/jbot_autonomy.hpp"
 
 //
@@ -23,20 +25,22 @@ BT::NodeStatus SetBlackboardInputs::tick() {
     return BT::NodeStatus::SUCCESS;
 }
 
-IsBotModeIdle::IsBotModeIdle(const std::string &name, const BT::NodeConfiguration &config)
-        : SyncActionNode(name, config) {}
+BotModeConditionNode::BotModeConditionNode(const std::string &name,
+                                           const BT::NodeConfiguration &config,
+                                           std::string target_bot_mode)
+        : SyncActionNode(name, config), target_bot_mode_(std::move(target_bot_mode)) {}
 
-BT::PortsList IsBotModeIdle::providedPorts() {
+BT::PortsList BotModeConditionNode::providedPorts() {
     return {BT::InputPort<std::string>("bot_mode")};
 }
 
-BT::NodeStatus IsBotModeIdle::tick() {
+BT::NodeStatus BotModeConditionNode::tick() {
     BT::Optional<std::string> bot_mode = getInput<std::string>("bot_mode");
     if (!bot_mode) {
         throw BT::RuntimeError("missing required input [bot_mode]: ",
                                bot_mode.error());
     }
-    return bot_mode == BOT_MODE_IDLE ? BT::NodeStatus::SUCCESS : BT::NodeStatus::FAILURE;
+    return bot_mode == target_bot_mode_ ? BT::NodeStatus::SUCCESS : BT::NodeStatus::FAILURE;
 }
 
 StopMotion::StopMotion(const std::string &name,
@@ -52,9 +56,38 @@ BT::NodeStatus StopMotion::tick() {
     return BT::NodeStatus::SUCCESS;
 }
 
+OperatorMove::OperatorMove(const std::string &name) : BT::SyncActionNode(name, {}) {}
+
+BT::NodeStatus OperatorMove::tick() {
+    // TODO use node logger
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Publishing /operator_command.teleop_cmd Twist on /cmd_vel");
+    // TODO implement
+    return BT::NodeStatus::SUCCESS;
+}
+
+GoalMove::GoalMove(const std::string &name) : BT::SyncActionNode(name, {}) {}
+
+BT::NodeStatus GoalMove::tick() {
+    // TODO use node logger
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"),
+                "Publishing Twist to reach /operator_command.goal, "
+                "given current /robot_state.pose");
+    // TODO implement
+    return BT::NodeStatus::SUCCESS;
+}
+
 //
 // ROS NODE
 //
+
+void registerBotModeConditionNode(BT::BehaviorTreeFactory &factory,
+                                  const char *node_name, const std::string &bot_mode) {
+    factory.registerBuilder<BotModeConditionNode>(node_name,
+                                                  [&](const std::string &name, const BT::NodeConfiguration &config) {
+                                                      return std::make_unique<BotModeConditionNode>(name, config,
+                                                                                                    bot_mode);
+                                                  });
+}
 
 JBotAutonomyNode::JBotAutonomyNode() : Node("jbot_autonomy") {
     op_cmd_ = std::make_unique<jbot_interfaces::msg::OperatorCommand>();
@@ -73,13 +106,17 @@ JBotAutonomyNode::JBotAutonomyNode() : Node("jbot_autonomy") {
 
     BT::BehaviorTreeFactory factory;
     factory.registerNodeType<SetBlackboardInputs>("SetBlackboardInputs");
-    factory.registerNodeType<IsBotModeIdle>("IsBotModeIdle");
+    factory.registerNodeType<OperatorMove>("OperatorMove");
+    factory.registerNodeType<GoalMove>("GoalMove");
     // https://www.behaviortree.dev/docs/3.8/tutorial-basics/tutorial_08_additional_args
     factory.registerBuilder<StopMotion>("StopMotion",
                                         [&](const std::string &name,
                                             __attribute__((unused)) const BT::NodeConfiguration &config) {
                                             return std::make_unique<StopMotion>(name, cmd_vel_pub_);
                                         });
+    registerBotModeConditionNode(factory, "IsBotModeIdle", BOT_MODE_IDLE);
+    registerBotModeConditionNode(factory, "IsBotModeTeleop", BOT_MODE_TELEOP);
+    registerBotModeConditionNode(factory, "IsBotModeAutonomous", BOT_MODE_AUTONOMOUS);
     tree_ = factory.createTreeFromFile(BT_XML_PATH);
 }
 

@@ -11,6 +11,14 @@
                     <IsBotModeIdle bot_mode="{bot_mode}"/>
                     <StopMotion/>
                 </Sequence>
+                <Sequence name="bot_mode_teleop">
+                    <IsBotModeTeleop bot_mode="{bot_mode}"/>
+                    <OperatorMove/>
+                </Sequence>
+                <Sequence name="bot_mode_autonomous">
+                    <IsBotModeAutonomous bot_mode="{bot_mode}"/>
+                    <GoalMove/>
+                </Sequence>
             </Fallback>
         </Sequence>
     </BehaviorTree>

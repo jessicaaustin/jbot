@@ -46,27 +46,42 @@ private:
     std::shared_ptr<rclcpp::Publisher<geometry_msgs::msg::TwistStamped>> cmd_vel_pub_;
 };
 
-//
-///**
-// * @brief ConditionNode based on current bot_mode value.
-// */
-//class BotModeConditionBase : public BT::SyncActionNode {
-//public:
-//    BotModeConditionBase(const std::string &name, const BT::NodeConfiguration &config);
-//
-//    static BT::PortsList providedPorts();
-//
-//    BT::NodeStatus tick() override;
-//};
-
-
-class IsBotModeIdle : public BT::SyncActionNode {
+/**
+ * @brief Publish operator_command Twist on /cmd_vel.
+ */
+class OperatorMove : public BT::SyncActionNode {
 public:
-    IsBotModeIdle(const std::string &name, const BT::NodeConfiguration &config);
+    explicit OperatorMove(const std::string &name);
+
+    BT::NodeStatus tick() override;
+};
+
+/**
+ * @brief Publish Twist on /cmd_vel to achieve operator_command goal, given current bot pose.
+ */
+class GoalMove : public BT::SyncActionNode {
+public:
+    explicit GoalMove(const std::string &name);
+
+    BT::NodeStatus tick() override;
+};
+
+
+/**
+ * @brief ConditionNode based on current bot_mode value.
+ *        Returns SUCCESS if bot_mode equals target_bot_mode, FAILURE otherwise.
+ */
+class BotModeConditionNode : public BT::SyncActionNode {
+public:
+    BotModeConditionNode(const std::string &name, const BT::NodeConfiguration &config,
+                         std::string target_bot_mode);
 
     static BT::PortsList providedPorts();
 
     BT::NodeStatus tick() override;
+
+private:
+    std::string target_bot_mode_;
 };
 
 
