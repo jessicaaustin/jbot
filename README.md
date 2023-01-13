@@ -24,7 +24,7 @@ Electronics:
 ![](docs/jbot-side-sm.jpg)
 ![](docs/jbot-front-sm.jpg)
 
-See [docs](docs/) for more images and hardware info.
+See [docs](docs) for more images and hardware info.
 
 _See [Iohannes blog post](http://jessicaaustin.net/iohannes-a-robot-based-off-the-sparkfun-ioio/) for a previous iteration of this robot._
 
