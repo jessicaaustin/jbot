@@ -17,9 +17,24 @@ endif ()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+find_package(ament_index_cpp REQUIRED)
+find_package(rclcpp REQUIRED)
+
+set(dependencies
+        ament_index_cpp
+        rclcpp)
+
+include_directories(
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+add_executable(motor_controller src/motor_controller.cpp)
+
+ament_target_dependencies(motor_controller ${dependencies})
+
+install(TARGETS
+        motor_controller
+        DESTINATION lib/${PROJECT_NAME})
 
 if (BUILD_TESTING)
     find_package(ament_lint_auto REQUIRED)
