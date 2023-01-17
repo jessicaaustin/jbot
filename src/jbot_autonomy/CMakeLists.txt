@@ -36,14 +36,11 @@ include_directories(
 )
 
 add_executable(jbot_autonomy src/jbot_autonomy.cpp)
-add_executable(op_cmd_publisher src/op_cmd_publisher.cpp)
 
 ament_target_dependencies(jbot_autonomy ${dependencies})
-ament_target_dependencies(op_cmd_publisher ${dependencies})
 
 install(TARGETS
         jbot_autonomy
-        op_cmd_publisher
         DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY
