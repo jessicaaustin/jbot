@@ -8,6 +8,21 @@ _Currently a work in progress_
 
 ## Development
 
+Setup:
+
+1. Install ROS2 Foxy: https://docs.ros.org/en/foxy/Installation/Ubuntu-Install-Debians.html
+   * `sudo apt install ros-foxy-ros-base ros-dev-tools`
+1. Install BehaviorTreeCpp v3:
+   * `sudo apt install ros-foxy-behaviortree-cpp-v3`
+
+Build:
+
+```
+source /opt/ros/foxy/setup.bash
+colcon build
+source ./install/setup.bash
+```
+
 Run with:
 
 ```bash
