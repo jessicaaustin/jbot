@@ -31,6 +31,7 @@ include_directories(
 add_executable(motor_controller src/motor_controller.cpp)
 
 ament_target_dependencies(motor_controller ${dependencies})
+target_link_libraries(motor_controller ${catkin_LIBRARIES} -lwiringPi -lpthread)
 
 install(TARGETS
         motor_controller

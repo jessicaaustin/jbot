@@ -1,32 +1,43 @@
 #include "motor_controller.h"
-#include <chrono>
-#include <cppgpio.hpp>
+#include <wiringPi.h>
+#include <softPwm.h>
 
-using namespace GPIO;
+// https://pinout.xyz/pinout/wiringpi
+#define MOTOR_1A 1 // GPIO18
+#define MOTOR_1B 26 // GPIO12
+#define MOTOR_2A 23 // GPIO13
+#define MOTOR_2B 24 // GPIO19
 
-int main()
-{
-    // use gpio #18
+int main(void) {
+    wiringPiSetup();
+    pinMode(MOTOR_1A, OUTPUT);
+    pinMode(MOTOR_1B, OUTPUT);
+    pinMode(MOTOR_2A, OUTPUT);
+    pinMode(MOTOR_2B, OUTPUT);
 
-    DigitalOut motor1A(18);
-    DigitalOut motor1B(12);
+    softPwmCreate(MOTOR_1B, 0, 100);
+    softPwmCreate(MOTOR_2B, 0, 100);
 
-    // stop
-    motor1A.off();
-    motor1B.off();
+    digitalWrite(MOTOR_1A, LOW);
+    digitalWrite(MOTOR_1B, LOW);
+    digitalWrite(MOTOR_2A, LOW);
+    digitalWrite(MOTOR_2B, LOW);
 
-    // fwd
-    motor1A.off();
-    motor1B.on();
+    digitalWrite(MOTOR_1A, LOW);
+    softPwmWrite(MOTOR_1B, 100);
+//    digitalWrite(MOTOR_1B, HIGH);
+    delay(500);
+    digitalWrite(MOTOR_1A, LOW);
+    softPwmWrite(MOTOR_1B, 0);
+    delay(10);
 
-    // wait some time
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-    // switch it off again
-
-    motor1A.off();
-    motor1B.off();
+    digitalWrite(MOTOR_2A, LOW);
+//    digitalWrite(MOTOR_2B, HIGH);
+    softPwmWrite(MOTOR_2B, 100);
+    delay(500);
+    digitalWrite(MOTOR_2A, LOW);
+    softPwmWrite(MOTOR_2B, 0);
+    delay(10);
 
     return 0;
 }
