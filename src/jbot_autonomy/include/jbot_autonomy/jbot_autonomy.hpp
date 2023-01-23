@@ -18,6 +18,9 @@ const std::string BOT_MODE_AUTONOMOUS = "autonomous";
 // ROS NODE
 //
 
+/**
+ * Handles running the behavior tree.
+ */
 class JBotAutonomyNode : public rclcpp::Node {
 public:
     /**
@@ -48,10 +51,6 @@ public:
      */
     void pub_cmd_vel(geometry_msgs::msg::TwistStamped msg);
 
-    /**
-     * Evaluate the tree once, and publish current status.
-     */
-    void run_tree();
 
 private:
     jbot_interfaces::msg::OperatorCommand::SharedPtr op_cmd_;
@@ -63,6 +62,10 @@ private:
 
     std::filesystem::path determineTreeXmlPath();
 
+    /**
+     * Evaluate the tree once, and publish current status.
+     */
+    void run_tree();
 };
 
 //

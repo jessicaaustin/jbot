@@ -94,6 +94,7 @@ JBotAutonomyNode::JBotAutonomyNode() : Node("jbot_autonomy") {
     op_cmd_ = std::make_unique<jbot_interfaces::msg::OperatorCommand>();
     op_cmd_->bot_mode = BOT_MODE_IDLE;
 
+    // TODO: shared constants for topic names
     bot_mode_pub_ = this->create_publisher<std_msgs::msg::String>("bot_mode", 10);
     cmd_vel_pub_ = this->create_publisher<geometry_msgs::msg::TwistStamped>("cmd_vel", 10);
     op_cmd_sub_ = this->create_subscription<jbot_interfaces::msg::OperatorCommand>(

@@ -1,0 +1,5 @@
+/motor_control:
+  ros__parameters:
+    main_loop_period_ms: 100
+    # if no new commands come in for this duration, then stop the motors
+    watchdog_timeout_ms: 250

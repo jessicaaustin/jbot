@@ -1,4 +1,3 @@
-#include "motor_controller.h"
 #include <wiringPi.h>
 #include <softPwm.h>
 
@@ -18,11 +17,13 @@ int main(void) {
     softPwmCreate(MOTOR_1B, 0, 100);
     softPwmCreate(MOTOR_2B, 0, 100);
 
+    // stop
     digitalWrite(MOTOR_1A, LOW);
     digitalWrite(MOTOR_1B, LOW);
     digitalWrite(MOTOR_2A, LOW);
     digitalWrite(MOTOR_2B, LOW);
 
+    // left forward
     digitalWrite(MOTOR_1A, LOW);
     softPwmWrite(MOTOR_1B, 100);
 //    digitalWrite(MOTOR_1B, HIGH);
@@ -31,6 +32,7 @@ int main(void) {
     softPwmWrite(MOTOR_1B, 0);
     delay(10);
 
+    // right forward
     digitalWrite(MOTOR_2A, LOW);
 //    digitalWrite(MOTOR_2B, HIGH);
     softPwmWrite(MOTOR_2B, 100);

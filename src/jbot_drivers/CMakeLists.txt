@@ -18,24 +18,36 @@ endif ()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(jbot_interfaces REQUIRED)
 find_package(rclcpp REQUIRED)
 
 set(dependencies
         ament_index_cpp
+        geometry_msgs
+        jbot_interfaces
         rclcpp)
 
 include_directories(
         ${PROJECT_SOURCE_DIR}/include
 )
 
-add_executable(motor_controller src/motor_controller.cpp)
+add_executable(motor_control src/motor_control.cpp)
 
-ament_target_dependencies(motor_controller ${dependencies})
-target_link_libraries(motor_controller ${catkin_LIBRARIES} -lwiringPi -lpthread)
+ament_target_dependencies(motor_control ${dependencies})
+target_link_libraries(motor_control ${catkin_LIBRARIES} -lwiringPi -lpthread)
 
 install(TARGETS
-        motor_controller
+        motor_control
         DESTINATION lib/${PROJECT_NAME})
+
+install(DIRECTORY
+        config
+        DESTINATION share/${PROJECT_NAME})
+
+install(DIRECTORY
+        launch
+        DESTINATION share/${PROJECT_NAME})
 
 if (BUILD_TESTING)
     find_package(ament_lint_auto REQUIRED)
